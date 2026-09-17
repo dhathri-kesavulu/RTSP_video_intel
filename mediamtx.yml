@@ -1,0 +1,19 @@
+# mediamtx.yml
+#
+# Minimal MediaMTX config for this project. MediaMTX ships with a much
+# longer default file (with every option documented) — this is a trimmed
+# version covering only what we actually use: accepting an RTSP push
+# from ffmpeg on any stream name, and serving it back out over RTSP.
+#
+# If you already have the mediamtx.yml that came bundled with the binary
+# (from Step 3), you can keep using that one as-is — its defaults already
+# cover everything below. This file exists so it's clear what matters.
+
+# Port RTSP clients (ffmpeg pushing in, OpenCV/ffmpeg pulling out) connect to.
+rtspAddress: :8554
+
+# "paths" defines which stream names MediaMTX will accept/serve.
+# all_others acts as a catch-all: any stream name ffmpeg publishes to
+# (e.g. "mystream") is automatically accepted without pre-declaring it here.
+paths:
+  all_others:

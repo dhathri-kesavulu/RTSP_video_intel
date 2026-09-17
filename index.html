@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RTSP_VIDEO_INTEL // TERMINAL</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #030507;
+    --blue-dim: #1e3a4f;
+    --blue: #4a90c2;
+    --blue-bright: #8ecdf0;
+    --rust: #b7410e;
+    --rust-bright: #e0632f;
+    --apricot: #d99b6c;
+    --apricot-bright: #f0bd8f;
+    --apricot-dim: #7a5a3f;
+    --text-dim: #4d6272;
+    --text-mid: #7d97a8;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100dvh;
+    background: var(--void);
+    background-image:
+      radial-gradient(ellipse at 50% 0%, rgba(74,144,194,0.06), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-mid);
+    letter-spacing: 0.02em;
+    overflow: hidden;
+  }
+
+  body { display: flex; padding: clamp(6px, 1.4vw, 18px); }
+
+  .console { width: 100%; max-width: 1400px; margin: 0 auto; height: 100%; display: flex; }
+
+  .frame {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(160deg, #141b21, #0a0d10 70%);
+    border: 1px solid #1c252c;
+    border-radius: clamp(12px, 1.6vw, 22px);
+    padding: clamp(10px, 1.6vw, 20px) clamp(12px, 2vw, 26px) clamp(8px, 1.4vw, 16px);
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.6),
+      inset 0 1px 0 rgba(255,255,255,0.04),
+      inset 0 0 60px rgba(0,0,0,0.5),
+      0 30px 70px rgba(0,0,0,0.55);
+    overflow: hidden;
+  }
+
+  .frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode: overlay;
+    opacity: 0.5;
+    z-index: 5;
+  }
+
+  .vignette { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 90px rgba(0,0,0,0.65); border-radius: inherit; z-index: 6; }
+
+  /* ---------- status bar ---------- */
+  .statusbar {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: clamp(8px, 1.6vw, 14px);
+    padding-bottom: clamp(6px, 1.2vw, 12px);
+    margin-bottom: clamp(6px, 1.2vw, 12px);
+    border-bottom: 1px solid rgba(74,144,194,0.15);
+    flex-wrap: wrap;
+  }
+  .sys-label { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(9px, 1.8vw, 12px); letter-spacing: 0.16em; color: var(--blue-bright); text-shadow: 0 0 10px rgba(142,205,240,0.5); white-space: nowrap; }
+  .stripe { flex: 1; min-width: 24px; height: 1px; background: linear-gradient(90deg, var(--blue-dim), transparent); position: relative; }
+  .stripe::after { content: ""; position: absolute; top: -1.5px; left: 0; height: 4px; width: 40%; background: linear-gradient(90deg, var(--blue-bright), transparent); filter: blur(1px); animation: sweep 4s ease-in-out infinite; }
+  @keyframes sweep { 0%, 100% { left: 0%; opacity: 0.8; } 50% { left: 55%; opacity: 0.3; } }
+  .readouts { display: flex; align-items: center; gap: clamp(8px, 1.6vw, 16px); font-size: clamp(9px, 1.8vw, 11px); white-space: nowrap; }
+  .readouts b { color: var(--apricot-bright); font-weight: 700; }
+  .readouts .ok { color: var(--blue-bright); }
+  .rec { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--rust-bright); font-weight: 500; }
+  .rec-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--rust-bright); box-shadow: 0 0 8px var(--rust-bright); animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+  /* ---------- section labels ---------- */
+  .section-label {
+    flex: 0 0 auto;
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Orbitron', sans-serif; font-size: clamp(9px, 1.4vw, 10px);
+    font-weight: 700; letter-spacing: 0.16em; color: var(--apricot);
+    margin: 0 0 6px;
+  }
+  .section-label .mini-stripe { flex: 0 0 20px; height: 1px; background: var(--apricot-dim); }
+
+  /* ---------- stats strip ---------- */
+  .stats-grid { flex: 0 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin-bottom: clamp(8px, 1.4vw, 14px); }
+  .stat-card { border: 1px solid rgba(74,144,194,0.2); border-radius: 8px; padding: 8px 12px; background: rgba(74,144,194,0.04); }
+  .stat-card .label { font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 0.1em; color: var(--apricot); margin-bottom: 4px; }
+  .stat-card .value { font-family: 'Orbitron', sans-serif; font-size: clamp(15px, 2.2vw, 20px); font-weight: 700; color: var(--blue-bright); text-shadow: 0 0 8px rgba(142,205,240,0.4); }
+  .stat-card .value.rust { color: var(--rust-bright); text-shadow: 0 0 8px rgba(224,99,47,0.4); }
+
+  /* ---------- main feed row ---------- */
+  .main-row { flex: 1 1 auto; min-height: 0; display: flex; gap: clamp(10px, 1.6vw, 20px); align-items: stretch; margin-bottom: clamp(6px, 1.2vw, 12px); }
+
+  /* left: live feature cards, replaces old clickable side nav */
+  .features-col { flex: 0 0 auto; width: clamp(150px, 16vw, 210px); display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .feature-card {
+    flex: 1 1 0;
+    display: flex; flex-direction: column; justify-content: center;
+    border: 1px solid var(--apricot-dim); border-radius: 8px;
+    padding: 8px 12px; background: rgba(217,155,108,0.05);
+  }
+  .feature-card .f-label { font-family: 'Orbitron', sans-serif; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; color: var(--apricot); margin-bottom: 4px; }
+  .feature-card .f-value { font-family: 'Orbitron', sans-serif; font-size: clamp(13px, 1.8vw, 16px); font-weight: 700; color: var(--blue-bright); text-shadow: 0 0 6px rgba(142,205,240,0.35); }
+  .feature-card .f-value.ok { color: var(--blue-bright); }
+  .feature-card .f-value.demo { color: var(--apricot-bright); text-shadow: 0 0 6px rgba(217,155,108,0.4); }
+  .feature-card .f-value.err { color: var(--rust-bright); text-shadow: 0 0 6px rgba(224,99,47,0.4); }
+  .feature-card .f-sub { font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+
+  .pwr {
+    flex: 0 0 auto;
+    font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    color: var(--apricot); border: 1px solid var(--apricot-dim); background: rgba(217,155,108,0.06);
+    border-radius: 6px; padding: 8px 6px; text-align: center; cursor: pointer; transition: all 0.2s;
+  }
+  .pwr:hover, .pwr:active { color: var(--apricot-bright); border-color: var(--apricot-bright); background: rgba(217,155,108,0.14); box-shadow: 0 0 14px rgba(217,155,108,0.25); }
+  .pwr.off { opacity: 0.4; }
+
+  .screen-col { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+  .screen {
+    position: relative;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-radius: 10px; background: #010203;
+    border: 1px solid rgba(74,144,194,0.35);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.8), 0 0 40px rgba(74,144,194,0.18), inset 0 0 30px rgba(0,0,0,0.8);
+    overflow: hidden;
+  }
+  .screen img { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(1.05) contrast(1.05); }
+  .screen-scan { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 3px); z-index: 2; }
+  .screen-glow { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 50px rgba(74,144,194,0.25); animation: flicker 5s infinite; z-index: 3; }
+  @keyframes flicker { 0%, 96%, 100% { opacity: 1; } 97% { opacity: 0.85; } 98% { opacity: 1; } }
+
+  .no-signal { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: #05080a; z-index: 1; padding: 8px; text-align: center; }
+  .no-signal.show { display: flex; }
+  .no-signal span { font-family: 'Orbitron', sans-serif; font-size: clamp(11px, 2vw, 14px); font-weight: 700; letter-spacing: 0.2em; color: var(--blue-dim); }
+  .no-signal .sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 400; letter-spacing: 0.08em; color: var(--text-dim); }
+
+  .stream-url {
+    flex: 0 0 auto;
+    font-size: clamp(8px, 1.3vw, 9.5px); letter-spacing: 0.04em; color: var(--text-dim);
+    border: 1px solid rgba(74,144,194,0.15); border-radius: 5px;
+    padding: 3px 10px; background: rgba(74,144,194,0.04);
+    max-width: 70%; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .gauge-col { flex: 0 0 auto; width: clamp(72px, 8vw, 100px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  .gauge { position: relative; width: clamp(56px, 7vw, 80px); height: clamp(56px, 7vw, 80px); }
+  .gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .gauge-track { fill: none; stroke: rgba(74,144,194,0.15); stroke-width: 6; }
+  .gauge-fill { fill: none; stroke: var(--blue-bright); stroke-width: 6; stroke-linecap: round; filter: drop-shadow(0 0 5px rgba(142,205,240,0.7)); transition: stroke-dashoffset 0.4s ease; }
+  .gauge-value { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: clamp(14px, 2vw, 18px); color: var(--blue-bright); text-shadow: 0 0 10px rgba(142,205,240,0.5); }
+  .gauge-label { font-family: 'Orbitron', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.15em; color: var(--apricot); }
+
+  /* ---------- log ---------- */
+  .log-wrap { flex: 0 0 auto; }
+  .log-box {
+    height: clamp(64px, 12vh, 110px); overflow-y: auto;
+    border: 1px solid rgba(74,144,194,0.2); border-radius: 8px;
+    padding: 6px 12px; background: rgba(0,0,0,0.3);
+    font-size: 10px; line-height: 1.6;
+  }
+  .log-box::-webkit-scrollbar { width: 5px; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--blue-dim); border-radius: 3px; }
+  .log-line { color: var(--text-mid); white-space: pre-wrap; word-break: break-word; }
+  .log-line .ts { color: var(--text-dim); }
+  .log-line .tag { color: var(--apricot-bright); }
+
+  /* ---------- footer ---------- */
+  .footer { flex: 0 0 auto; margin-top: clamp(6px, 1.2vw, 12px); padding-top: clamp(6px, 1.2vw, 10px); border-top: 1px solid rgba(74,144,194,0.15); display: flex; align-items: center; justify-content: space-between; }
+  .footer-label { font-family: 'Orbitron', sans-serif; font-size: 9px; letter-spacing: 0.14em; color: var(--text-dim); }
+  .dots { display: flex; gap: 4px; }
+  .dots span { width: 5px; height: 5px; border-radius: 50%; background: var(--blue-dim); }
+  .dots span.on { background: var(--blue-bright); box-shadow: 0 0 6px var(--blue-bright); }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 700px) {
+    html, body { height: auto; overflow-y: auto; }
+    .main-row { flex-direction: column; }
+    .features-col { flex-direction: row; width: 100%; }
+    .feature-card { padding: 6px 8px; }
+    .pwr { flex: 0 0 auto; }
+    .gauge-col { flex-direction: row; width: 100%; justify-content: center; }
+    .screen { min-height: 180px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="console">
+  <div class="frame">
+    <div class="vignette"></div>
+
+    <div class="statusbar">
+      <span class="sys-label">SYS_STATUS</span>
+      <div class="stripe"></div>
+      <div class="readouts">
+        <span>OBJ <b id="objReadout">00</b></span>
+        <span id="netReadout" class="ok">NET LIVE</span>
+        <div class="rec"><span class="rec-dot"></span> REC</div>
+      </div>
+    </div>
+
+    <div class="section-label"><span class="mini-stripe"></span>STATS</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="label">OBJECTS NOW</div>
+        <div class="value" id="statObjNow">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">PEAK OBJECTS</div>
+        <div class="value" id="statObjPeak">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">CONNECTION</div>
+        <div class="value" id="statConn">DEMO</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">UPTIME</div>
+        <div class="value" id="statUptime">00:00</div>
+      </div>
+    </div>
+
+    <div class="section-label"><span class="mini-stripe"></span>FEED</div>
+    <div class="main-row">
+      <div class="features-col">
+        <div class="feature-card">
+          <div class="f-label">SRC</div>
+          <div class="f-value" id="featSrc">RTSP</div>
+          <div class="f-sub">MediaMTX feed</div>
+        </div>
+        <div class="feature-card">
+          <div class="f-label">DET</div>
+          <div class="f-value" id="featDet">0</div>
+          <div class="f-sub">YOLOv8n objects</div>
+        </div>
+        <div class="feature-card">
+          <div class="f-label">NET</div>
+          <div class="f-value demo" id="featNet">DEMO</div>
+          <div class="f-sub">stats channel</div>
+        </div>
+        <div class="pwr" id="pwrBtn">PWR</div>
+      </div>
+
+      <div class="screen-col">
+        <div class="screen" id="screen">
+          <img id="videoFeed" src="/video" alt="Live detection feed">
+          <div class="no-signal" id="noSignal">
+            <span>NO SIGNAL</span>
+            <span class="sub">AWAITING RTSP STREAM</span>
+          </div>
+          <div class="screen-scan"></div>
+          <div class="screen-glow"></div>
+        </div>
+        <div class="stream-url">rtsp://localhost:8554/mystream</div>
+      </div>
+
+      <div class="gauge-col">
+        <div class="gauge">
+          <svg viewBox="0 0 100 100">
+            <circle class="gauge-track" cx="50" cy="50" r="42"></circle>
+            <circle class="gauge-fill" id="gaugeFill" cx="50" cy="50" r="42" stroke-dasharray="264" stroke-dashoffset="264"></circle>
+          </svg>
+          <div class="gauge-value" id="gaugeValue">0</div>
+        </div>
+        <div class="gauge-label">OBJS</div>
+      </div>
+    </div>
+
+    <div class="section-label"><span class="mini-stripe"></span>LOG</div>
+    <div class="log-wrap">
+      <div class="log-box" id="logBox"></div>
+    </div>
+
+    <div class="footer">
+      <span class="footer-label">RTSP_VIDEO_INTEL v1.0</span>
+      <div class="dots">
+        <span class="on"></span>
+        <span class="on"></span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const videoFeed = document.getElementById('videoFeed');
+  const noSignal = document.getElementById('noSignal');
+  const objReadout = document.getElementById('objReadout');
+  const netReadout = document.getElementById('netReadout');
+  const gaugeValue = document.getElementById('gaugeValue');
+  const gaugeFill = document.getElementById('gaugeFill');
+  const statObjNow = document.getElementById('statObjNow');
+  const statObjPeak = document.getElementById('statObjPeak');
+  const statConn = document.getElementById('statConn');
+  const statUptime = document.getElementById('statUptime');
+  const logBox = document.getElementById('logBox');
+  const featDet = document.getElementById('featDet');
+  const featNet = document.getElementById('featNet');
+
+  const GAUGE_CIRCUMFERENCE = 264;
+  const GAUGE_MAX = 12;
+  let peakObjects = 0;
+  const startTime = Date.now();
+
+  function pad2(n) { return n.toString().padStart(2, '0'); }
+
+  function timestamp() {
+    const d = new Date();
+    return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  }
+
+  function addLog(tag, text) {
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = `<span class="ts">[${timestamp()}]</span> <span class="tag">${tag}</span> ${text}`;
+    logBox.appendChild(line);
+    while (logBox.children.length > 40) logBox.removeChild(logBox.firstChild);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function setObjectCount(count) {
+    objReadout.textContent = pad2(count);
+    gaugeValue.textContent = count;
+    statObjNow.textContent = count;
+    featDet.textContent = count;
+    if (count > peakObjects) { peakObjects = count; statObjPeak.textContent = peakObjects; }
+    const ratio = Math.min(count / GAUGE_MAX, 1);
+    gaugeFill.setAttribute('stroke-dashoffset', GAUGE_CIRCUMFERENCE * (1 - ratio));
+  }
+
+  setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    statUptime.textContent = `${pad2(Math.floor(elapsed / 60))}:${pad2(elapsed % 60)}`;
+  }, 1000);
+
+  videoFeed.addEventListener('error', () => { noSignal.classList.add('show'); });
+  videoFeed.addEventListener('load', () => { noSignal.classList.remove('show'); });
+
+  /* ---- PWR toggle: dims the whole console ---- */
+  const pwrBtn = document.getElementById('pwrBtn');
+  const frameEl = document.querySelector('.frame');
+  let powered = true;
+  pwrBtn.addEventListener('click', () => {
+    powered = !powered;
+    frameEl.style.opacity = powered ? '1' : '0.3';
+    frameEl.style.filter = powered ? 'none' : 'grayscale(0.6)';
+    pwrBtn.classList.toggle('off', !powered);
+    addLog('SYS', powered ? 'display resumed' : 'display dimmed');
+  });
+
+  /* ---- stats / websocket ---- */
+  let ws;
+  let demoTimer;
+
+  function setNetState(state) {
+    // state: 'ok' | 'demo' | 'err'
+    featNet.classList.remove('ok', 'demo', 'err');
+    featNet.classList.add(state);
+    featNet.textContent = state === 'ok' ? 'LIVE' : state === 'demo' ? 'DEMO' : 'ERR';
+  }
+
+  function startDemoMode() {
+    netReadout.textContent = 'NET DEMO';
+    netReadout.classList.remove('ok');
+    netReadout.style.color = 'var(--apricot-bright)';
+    statConn.textContent = 'DEMO';
+    statConn.classList.add('rust');
+    setNetState('demo');
+    clearInterval(demoTimer);
+    demoTimer = setInterval(() => {
+      const count = Math.floor(Math.random() * 6);
+      setObjectCount(count);
+      if (Math.random() < 0.3) addLog('DET', `${count} object(s) in frame`);
+    }, 1200);
+  }
+
+  function connectStats() {
+    try {
+      ws = new WebSocket(`ws://${location.host}/ws/stats`);
+
+      ws.onopen = () => {
+        clearInterval(demoTimer);
+        netReadout.textContent = 'NET LIVE';
+        netReadout.classList.add('ok');
+        netReadout.style.color = '';
+        statConn.textContent = 'LIVE';
+        statConn.classList.remove('rust');
+        setNetState('ok');
+        addLog('NET', 'connected to /ws/stats');
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (typeof data.object_count === 'number') setObjectCount(data.object_count);
+      };
+
+      ws.onerror = () => {
+        netReadout.textContent = 'NET ERR';
+        netReadout.classList.remove('ok');
+        netReadout.style.color = 'var(--rust-bright)';
+        setNetState('err');
+      };
+
+      ws.onclose = () => {
+        startDemoMode();
+        setTimeout(connectStats, 4000);
+      };
+    } catch (e) {
+      startDemoMode();
+    }
+  }
+
+  addLog('SYS', 'terminal initialized');
+  connectStats();
+</script>
+
+</body>
+</html>
