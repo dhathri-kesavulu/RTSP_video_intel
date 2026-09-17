@@ -7,7 +7,7 @@ real-time detection stats pushed over WebSocket.
 
 ## Why I built it
 Built as a self-directed project to get hands-on with RTSP/ONVIF/computer
-vision ahead of applying to Vikasana Systems, whose UAV/UGV
+vision, whose UAV/UGV
 command-and-control platform uses this exact stack. Paired with a
 companion project, Multi-Vehicle GCS Core, this module is framed as a
 sensor plugin that could feed into that GCS.
