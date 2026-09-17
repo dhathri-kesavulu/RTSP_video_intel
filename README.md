@@ -56,7 +56,7 @@ sensor plugin that could feed into that GCS.
 6. Open `http://localhost:8000/static/index.html` in a browser.
 
 ## Demo
-[link to video]
+[link to video- yet to be shot and uploaded]
 
 ## Next steps
 - Full ONVIF device negotiation against a real IP camera
